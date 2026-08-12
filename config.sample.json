@@ -1,0 +1,42 @@
+{
+  // Copy to C:\ProgramData\Bifurcate\config.json and edit, or just run the tray app and let the
+  // setup screen write it for you. Comments are allowed here and are ignored on load.
+
+  // Name of the Windows VPN connection to manage, exactly as it appears in Settings.
+  "vpnConnectionName": "YourVpnName",
+
+  // Prefixes that ride the tunnel in Subnet Only mode. In Route All Traffic mode these are unused,
+  // because the default route covers everything.
+  "tunnelRoutes": [ "10.0.0.0/16" ],
+
+  // Health check for the tunnel, and the traffic that keeps the session from idling out.
+  // The host must sit inside one of tunnelRoutes above, or Subnet Only mode will send the probe
+  // over your local connection and it will never test the VPN at all.
+  // "type": "Icmp" for ping, or "Tcp" to connect to a port instead when ping is filtered.
+  "probe": {
+    "type": "Icmp",
+    "host": "10.0.0.10",
+    "port": 0,
+    "timeoutMs": 3000
+  },
+
+  // Returns your public IP as plain text. Blank disables the lookup; the leak verdict still works
+  // because that comes from the local route table, not from this.
+  "publicIpUrl": "https://api.ipify.org",
+
+  // Optional. Addresses known to belong to the VPN's egress, which lets the External IP line say
+  // "through the VPN" with certainty rather than inferring it. Safe to leave empty.
+  "knownVpnEgressIps": [],
+
+  // How often the service re-checks everything. It also reacts to network changes immediately,
+  // so this is a safety net rather than the main mechanism.
+  "sweepIntervalSeconds": 60,
+
+  // Applied to the tunnel adapter only. Your LAN, Wi-Fi, and other VPNs are untouched.
+  "hardening": {
+    "enabled": true,
+    "setNetworkPrivate": true,
+    "blockInboundTcpPorts": [ 139, 445 ],
+    "blockInboundUdpPorts": [ 137, 138, 1900, 5353, 5355 ]
+  }
+}

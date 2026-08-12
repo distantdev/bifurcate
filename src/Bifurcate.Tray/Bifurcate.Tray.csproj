@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- WPF for the windows, WinForms purely for NotifyIcon and balloon tips. -->
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Explorer, the taskbar and shortcuts read the icon from the executable's resources rather
+         than from the window, so this has to be a real file. tools\make-icon.ps1 regenerates it. -->
+    <ApplicationIcon>..\..\assets\Bifurcate.ico</ApplicationIcon>
+    <!-- ThemeMode, the light/dark switch, is still marked experimental by WPF. -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WinForms is here only for NotifyIcon, and its implicit usings collide with WPF on names
+         like Application and Brush. The few WinForms types used are aliased explicitly instead. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bifurcate.Core\Bifurcate.Core.csproj" />
+  </ItemGroup>
+
+</Project>

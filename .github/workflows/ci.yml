@@ -1,0 +1,35 @@
+name: Tests
+
+# Runs on every push and pull request so the badge in the README means something between releases.
+# The release workflow runs the same tests again before it publishes anything.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+# A new push to the same branch makes the run in progress pointless, so drop it.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # Windows only, and not negotiable: the tray app is WPF and the whole of Bifurcate.Core talks
+    # to Windows through CIM and COM.
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Test
+        run: dotnet test --configuration Release --nologo

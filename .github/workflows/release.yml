@@ -1,0 +1,155 @@
+name: Release
+
+# Pushing a version tag builds both executables and attaches an installable zip to a GitHub
+# release. Running it by hand builds the same zip and leaves it as a workflow artifact, which is
+# how to rehearse a release without publishing one.
+on:
+  push:
+    # Tag filters are globs, not regexes, so the exact shape is checked in the version step below.
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build, for example v1.2.3. Nothing is published.'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    # Windows only, and not negotiable: the tray app is WPF and the whole of Bifurcate.Core talks
+    # to Windows through CIM and COM.
+    runs-on: windows-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Work out the version
+        id: version
+        shell: pwsh
+        run: |
+          $tag = if ('${{ github.event_name }}' -eq 'push') {
+            '${{ github.ref_name }}'
+          }
+          else {
+            '${{ inputs.version }}'
+          }
+
+          if ($tag -notmatch '^v\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$') {
+            throw "Expected a tag like v1.2.3 or v1.2.3-beta.1, got '$tag'."
+          }
+
+          $version = $tag.Substring(1)
+
+          # A tag like v1.2.3-beta.1 is published as a prerelease rather than as the latest version.
+          $prerelease = if ($version -like '*-*') { 'true' } else { 'false' }
+
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "tag=$tag"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$version"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "prerelease=$prerelease"
+          Write-Host "Building $version from $tag, prerelease=$prerelease"
+
+      - name: Test
+        run: dotnet test --configuration Release --nologo
+
+      # These flags match install.ps1 on purpose, so a release is the same build a developer gets
+      # locally. Trimming stays off because it breaks COM interop and the reflection CIM relies on.
+      - name: Publish
+        shell: pwsh
+        run: |
+          foreach ($project in 'Bifurcate.Service', 'Bifurcate.Tray') {
+            dotnet publish "src/$project" `
+              --configuration Release `
+              --runtime win-x64 `
+              --self-contained true `
+              -p:PublishSingleFile=true `
+              -p:PublishTrimmed=false `
+              -p:Version=${{ steps.version.outputs.version }} `
+              --output "publish/$project" `
+              --nologo
+            if ($LASTEXITCODE -ne 0) { throw "Publishing $project failed." }
+          }
+
+      # Laid out so install.ps1 finds the executables where it expects them, which lets someone who
+      # unpacks the zip just run it.
+      - name: Package
+        id: package
+        shell: pwsh
+        run: |
+          $name = "Bifurcate-${{ steps.version.outputs.version }}"
+          $staging = Join-Path 'release' $name
+          New-Item -ItemType Directory -Path $staging -Force | Out-Null
+
+          Copy-Item 'install.ps1', 'config.sample.json', 'README.md' -Destination $staging
+
+          # The screenshots the README points at, so it still reads properly offline.
+          Copy-Item 'docs' -Destination $staging -Recurse
+          foreach ($project in 'Bifurcate.Service', 'Bifurcate.Tray') {
+            $target = Join-Path $staging "publish/$project"
+            New-Item -ItemType Directory -Path $target -Force | Out-Null
+
+            # The executable only. Symbols would double the download for no benefit here.
+            Copy-Item "publish/$project/$project.exe" -Destination $target
+          }
+
+          $zip = "release/$name.zip"
+          Compress-Archive -Path $staging -DestinationPath $zip -CompressionLevel Optimal
+
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -Path "release/$name.sha256.txt" -Value "$hash  $name.zip"
+
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "zip=$zip"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "checksums=release/$name.sha256.txt"
+          Write-Host ("{0} is {1:N0} MB, sha256 {2}" -f $zip, ((Get-Item $zip).Length / 1MB), $hash)
+
+      - name: Upload the rehearsal build
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ steps.package.outputs.zip }}
+          # Uploaded as it stands, so downloading it gives the zip rather than a zip of the zip.
+          archive: false
+          if-no-files-found: error
+
+      - name: Publish the release
+        if: github.event_name == 'push'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Literal here-string, so the code fence backticks need no escaping.
+          $notes = @'
+          Unpack the zip, then from an elevated PowerShell 7 prompt in that folder:
+
+          ```powershell
+          .\install.ps1
+          ```
+
+          That installs the service, sets it to start with Windows, and starts the tray app, which
+          asks on first run which VPN connection to manage. The zip carries prebuilt executables,
+          so nothing needs to be compiled. Check it against the published SHA-256 if you like.
+          '@
+
+          $arguments = @(
+            '${{ steps.version.outputs.tag }}'
+            '${{ steps.package.outputs.zip }}'
+            '${{ steps.package.outputs.checksums }}'
+            '--title', 'Bifurcate ${{ steps.version.outputs.version }}'
+            '--notes', $notes
+            '--generate-notes'
+            # The tag is what triggered this, so it must already be on the remote.
+            '--verify-tag'
+          )
+          if ('${{ steps.version.outputs.prerelease }}' -eq 'true') { $arguments += '--prerelease' }
+
+          gh release create @arguments
+          if ($LASTEXITCODE -ne 0) { throw 'Creating the release failed.' }

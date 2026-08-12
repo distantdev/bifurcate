@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Bifurcate.Core/Bifurcate.Core.csproj" />
+    <Project Path="src/Bifurcate.Service/Bifurcate.Service.csproj" />
+    <Project Path="src/Bifurcate.Tray/Bifurcate.Tray.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Bifurcate.Tests/Bifurcate.Tests.csproj" />
+  </Folder>
+</Solution>

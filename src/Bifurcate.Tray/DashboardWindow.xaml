@@ -1,0 +1,49 @@
+<Window x:Class="Bifurcate.Tray.DashboardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Bifurcate"
+        Width="500"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Segoe UI"
+        FontSize="13">
+
+  <StackPanel Margin="18,16,18,18">
+
+    <Grid Margin="0,0,0,12">
+      <TextBlock x:Name="Heading" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+      <Button Content="&#xE713;" ToolTip="Settings" AutomationProperties.Name="Settings"
+              Style="{StaticResource IconButton}" HorizontalAlignment="Right" Click="OnSettingsClick" />
+    </Grid>
+
+    <ItemsControl x:Name="StatusLines">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate>
+          <StackPanel Orientation="Horizontal" Margin="0,4">
+            <Ellipse Width="9" Height="9" Margin="1,0,10,0" VerticalAlignment="Center"
+                     Fill="{Binding Color}" />
+            <TextBlock Text="{Binding Text}" Foreground="{Binding Color}"
+                       TextWrapping="Wrap" MaxWidth="420" />
+          </StackPanel>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <Separator Margin="0,16,0,12" />
+
+    <TextBlock Text="Routing mode" FontWeight="SemiBold" />
+    <TextBlock Style="{StaticResource Hint}" Margin="0,2,0,8"
+               Text="Saved to the VPN profile. Reconnect the VPN for a change to take effect." />
+
+    <StackPanel Orientation="Horizontal">
+      <Button x:Name="RouteAllButton" Content="Route All Traffic" Width="160" Margin="0,0,10,0"
+              Click="OnRouteAllClick" />
+      <Button x:Name="SubnetOnlyButton" Content="Subnet Only" Width="160"
+              Click="OnSubnetOnlyClick" />
+    </StackPanel>
+
+    <TextBlock x:Name="Footer" Style="{StaticResource Hint}" Margin="0,18,0,0" />
+
+  </StackPanel>
+</Window>

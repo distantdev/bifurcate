@@ -1,0 +1,10 @@
+bin/
+obj/
+publish/
+release/
+.vs/
+*.user
+*.suo
+
+# Local machine configuration. Only config.sample.json belongs in the repo.
+config.json
