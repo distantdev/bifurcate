@@ -1,3 +1,4 @@
+using System.Net.NetworkInformation;
 using System.Windows.Threading;
 using Bifurcate.Core;
 
@@ -24,12 +25,22 @@ public sealed class StatusService : IDisposable
     private readonly PublicIpProbe _publicIpProbe = new();
     private readonly SemaphoreSlim _oneAtATime = new(1, 1);
     private readonly DispatcherTimer _timer;
+    private readonly DispatcherTimer _settle;
 
     public StatusService(BifurcateConfig config, TimeSpan interval)
     {
         Config = config;
         _timer = new DispatcherTimer { Interval = interval };
         _timer.Tick += async (_, _) => await RefreshAsync().ConfigureAwait(true);
+
+        // Windows reports an address change several times as an adapter comes or goes, so the
+        // refresh waits for the burst to stop rather than running once per event.
+        _settle = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _settle.Tick += async (_, _) =>
+        {
+            _settle.Stop();
+            await RefreshAsync().ConfigureAwait(true);
+        };
     }
 
     public event Action<StatusUpdate>? Updated;
@@ -40,7 +51,13 @@ public sealed class StatusService : IDisposable
 
     public StatusUpdate? Latest { get; private set; }
 
-    public void Start() => _timer.Start();
+    public void Start()
+    {
+        // The interval alone would leave a dropped VPN unreported for up to that long, which is too
+        // late to be worth telling someone about.
+        NetworkChange.NetworkAddressChanged += OnNetworkAddressChanged;
+        _timer.Start();
+    }
 
     /// <summary>
     /// Refreshes everything. Overlapping calls are dropped rather than queued, since the caller
@@ -97,6 +114,14 @@ public sealed class StatusService : IDisposable
     public Task<IReadOnlyList<VpnConnectionInfo>> ListVpnConnectionsAsync() =>
         Task.Run(() => _collector.ListVpnConnections());
 
+    // Raised on a thread pool thread, so the restart hops back to the dispatcher that owns the timer.
+    private void OnNetworkAddressChanged(object? sender, EventArgs e) =>
+        _settle.Dispatcher.BeginInvoke(() =>
+        {
+            _settle.Stop();
+            _settle.Start();
+        });
+
     private void ReloadConfig()
     {
         ConfigLoadResult result = ConfigStore.Load();
@@ -116,6 +141,8 @@ public sealed class StatusService : IDisposable
 
     public void Dispose()
     {
+        NetworkChange.NetworkAddressChanged -= OnNetworkAddressChanged;
+        _settle.Stop();
         _timer.Stop();
         _collector.Dispose();
         _publicIpProbe.Dispose();

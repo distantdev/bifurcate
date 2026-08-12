@@ -81,8 +81,10 @@ Six lines, rechecked on the interval in your settings and whenever you open the 
 Green means as intended. Orange usually means **reconnect the VPN**, because Windows only reads a
 profile's routing settings when the connection is dialed. Red means something is wrong now.
 
-The tray icon takes the colour of the worst line, and shows a notification when the tunnel stops
-answering or public traffic starts leaking through the VPN.
+The tray icon takes the colour of the worst line, and shows a notification when the VPN drops, when
+the tunnel stops answering, or when public traffic starts leaking through the VPN. Clicking the
+notification opens the dashboard. Bifurcate cannot dial the connection for you, so a drop is
+something it reports rather than repairs.
 
 ### Routing mode
 

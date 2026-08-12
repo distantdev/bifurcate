@@ -21,6 +21,7 @@ internal sealed class TrayController : IDisposable
     private readonly Dictionary<StatusKind, StatusSeverity> _lastSeverity = [];
 
     private DashboardWindow? _dashboard;
+    private bool? _tunnelWasUp;
 
     public TrayController(StatusService status)
     {
@@ -56,6 +57,7 @@ internal sealed class TrayController : IDisposable
             Visible = true,
         };
         _icon.DoubleClick += (_, _) => ShowDashboard();
+        _icon.BalloonTipClicked += (_, _) => ShowDashboard();
 
         // The icon is drawn in the status colour, and which shade of it depends on the taskbar.
         ThemeManager.Changed += OnThemeChanged;
@@ -146,6 +148,8 @@ internal sealed class TrayController : IDisposable
         _icon.Text = Tooltip(update);
         _startupItem.Checked = update.Snapshot.StartupEnabled;
 
+        NotifyIfTheVpnDropped(update);
+
         foreach (StatusKind kind in Notifiable)
         {
             StatusLine line = update.Lines.First(candidate => candidate.Kind == kind);
@@ -160,6 +164,28 @@ internal sealed class TrayController : IDisposable
                 _icon.ShowBalloonTip(8000, BifurcateInfo.ProductName, line.Text, WinForms.ToolTipIcon.Warning);
             }
         }
+    }
+
+    /// <summary>
+    /// A dropped VPN is not an error, so the dashboard stays neutral and nothing else would say a
+    /// word. Bifurcate cannot dial the connection, so the drop itself is the thing worth raising.
+    /// </summary>
+    private void NotifyIfTheVpnDropped(StatusUpdate update)
+    {
+        bool up = update.Snapshot.Tunnel is not null;
+
+        // Only on the fall from a state we saw up, so launching while off the VPN says nothing and
+        // staying off it does not repeat.
+        if (_tunnelWasUp == true && !up)
+        {
+            _icon.ShowBalloonTip(
+                8000,
+                BifurcateInfo.ProductName,
+                $"{update.Snapshot.Config.VpnConnectionName} disconnected. Reconnect it in Windows to restore the tunnel.",
+                WinForms.ToolTipIcon.Warning);
+        }
+
+        _tunnelWasUp = up;
     }
 
     private static string Tooltip(StatusUpdate update)
