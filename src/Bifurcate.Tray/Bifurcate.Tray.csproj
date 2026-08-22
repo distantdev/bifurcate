@@ -11,6 +11,9 @@
     <ApplicationIcon>..\..\assets\Bifurcate.ico</ApplicationIcon>
     <!-- ThemeMode, the light/dark switch, is still marked experimental by WPF. -->
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <!-- Single-file publish leaves WPF natives (PresentationNative_cor3, wpfgfx_cor3, ...) out of the
+         bundle unless this is set; without them the tray process dies on first HwndSubclass. -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
   <ItemGroup>

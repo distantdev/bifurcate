@@ -145,6 +145,8 @@ function Publish-Projects {
         Write-Detail "$project -> $target"
 
         # Trimming stays off on purpose: it breaks COM interop and the reflection CIM relies on.
+        # Bifurcate.Tray.csproj sets IncludeNativeLibrariesForSelfExtract so WPF natives ride
+        # inside the single-file bundle (without them the tray crashes on startup).
         dotnet publish (Join-Path $repoRoot "src\$project") `
             --configuration Release `
             --runtime win-x64 `

@@ -63,6 +63,7 @@ jobs:
 
       # These flags match install.ps1 on purpose, so a release is the same build a developer gets
       # locally. Trimming stays off because it breaks COM interop and the reflection CIM relies on.
+      # Bifurcate.Tray.csproj sets IncludeNativeLibrariesForSelfExtract for WPF natives in the bundle.
       - name: Publish
         shell: pwsh
         run: |
