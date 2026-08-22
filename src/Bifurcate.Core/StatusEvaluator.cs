@@ -85,8 +85,22 @@ public static class StatusEvaluator
 
         if (state.Vpn.Routes.Length == 0)
         {
+            if (state.UnresolvedTunnelHosts.Count > 0)
+            {
+                return new(StatusKind.Routing,
+                    $"Routing: Subnet only, but {UnresolvedHosts(state)} did not resolve",
+                    StatusSeverity.Bad);
+            }
+
             return new(StatusKind.Routing,
                 "Routing: Subnet only, but no subnets are set", StatusSeverity.Bad);
+        }
+
+        if (state.UnresolvedTunnelHosts.Count > 0)
+        {
+            return new(StatusKind.Routing,
+                $"Routing: Subnet only, but {UnresolvedHosts(state)} did not resolve",
+                StatusSeverity.Warning);
         }
 
         if (connected && (state.DefaultRouteOnTunnel || !state.ConfiguredRoutesLive))
@@ -95,8 +109,54 @@ public static class StatusEvaluator
         }
 
         return new(StatusKind.Routing,
-            $"Routing: {string.Join(", ", state.Vpn.Routes)} only, others not tunneled", StatusSeverity.Good);
+            $"Routing: {SplitScope(state)} only, others not tunneled", StatusSeverity.Good);
     }
+
+    /// <summary>
+    /// The dashboard is one line. A couple of subnets still fit; resolved /32s do not, so those
+    /// collapse to a count: "10.200.0.0/16 + 2 hosts".
+    /// </summary>
+    private static string SplitScope(StatusSnapshot state)
+    {
+        string[] routes = state.Vpn!.Routes;
+        int hosts = state.Config.TunnelHosts.Length;
+        string main = MainSubnet(state);
+
+        if (hosts > 0)
+        {
+            string extra = CountNoun(hosts, "host");
+            return main.Length == 0 ? extra : $"{main} + {extra}";
+        }
+
+        if (routes.Length <= 2)
+        {
+            return string.Join(", ", routes);
+        }
+
+        return main.Length == 0
+            ? $"{routes.Length} prefixes"
+            : $"{main} + {routes.Length - 1} others";
+    }
+
+    private static string MainSubnet(StatusSnapshot state)
+    {
+        if (state.Config.TunnelRoutes.Length > 0) { return state.Config.TunnelRoutes[0]; }
+
+        foreach (string route in state.Vpn!.Routes)
+        {
+            if (!route.EndsWith("/32", StringComparison.OrdinalIgnoreCase)) { return route; }
+        }
+
+        return "";
+    }
+
+    private static string UnresolvedHosts(StatusSnapshot state) =>
+        state.UnresolvedTunnelHosts.Count == 1
+            ? state.UnresolvedTunnelHosts[0]
+            : CountNoun(state.UnresolvedTunnelHosts.Count, "host");
+
+    private static string CountNoun(int count, string singular) =>
+        count == 1 ? $"1 {singular}" : $"{count} {singular}s";
 
     private static StatusLine ExternalIp(StatusSnapshot state)
     {

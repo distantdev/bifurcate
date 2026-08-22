@@ -31,6 +31,41 @@ public class BifurcateConfigTests
     }
 
     [Fact]
+    public void ABadTunnelHostIsReported()
+    {
+        BifurcateConfig config = Valid() with { TunnelHosts = ["not a host"] };
+
+        Assert.Contains(config.Validate(), error => error.Contains("tunnelHosts"));
+    }
+
+    [Fact]
+    public void ACidrInTunnelHostsIsRejectedSoItGoesInTunnelRoutesInstead()
+    {
+        BifurcateConfig config = Valid() with { TunnelHosts = ["10.0.0.0/16"] };
+
+        Assert.Contains(config.Validate(), error => error.Contains("tunnelRoutes"));
+    }
+
+    [Fact]
+    public void AnIPv6TunnelHostIsRejected()
+    {
+        BifurcateConfig config = Valid() with { TunnelHosts = ["2001:db8::1"] };
+
+        Assert.Contains(config.Validate(), error => error.Contains("IPv6"));
+    }
+
+    [Fact]
+    public void AHostnameAndDottedIPv4AreValidTunnelHosts()
+    {
+        BifurcateConfig config = Valid() with
+        {
+            TunnelHosts = ["tspan-prod.database.windows.net", "192.0.2.10"],
+        };
+
+        Assert.Empty(config.Validate());
+    }
+
+    [Fact]
     public void AnEmptyProbeHostIsReported()
     {
         BifurcateConfig config = Valid() with { Probe = new ProbeConfig { Host = "" } };
@@ -160,6 +195,18 @@ public class BifurcateConfigTests
         };
 
         Assert.Equal(ProbeHostRouting.Outside, config.ClassifyProbeHost());
+    }
+
+    [Fact]
+    public void AProbeHostNameOnTheTunnelHostListIsInside()
+    {
+        BifurcateConfig config = Valid() with
+        {
+            TunnelHosts = ["sql.example.com"],
+            Probe = new ProbeConfig { Host = "SQL.example.com" },
+        };
+
+        Assert.Equal(ProbeHostRouting.Inside, config.ClassifyProbeHost());
     }
 
     private static BifurcateConfig Valid() => new()

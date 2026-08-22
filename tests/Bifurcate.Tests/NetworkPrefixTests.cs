@@ -72,4 +72,10 @@ public class NetworkPrefixTests
 
         Assert.False(prefix.Contains(IPAddress.Parse("fd00::1")));
     }
+
+    [Fact]
+    public void IPv4HostRouteIsASlashThirtyTwo()
+    {
+        Assert.Equal("192.0.2.10/32", NetworkPrefix.IPv4HostRoute(IPAddress.Parse("192.0.2.10")));
+    }
 }

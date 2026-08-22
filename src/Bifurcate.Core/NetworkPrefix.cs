@@ -23,6 +23,18 @@ public readonly record struct NetworkPrefix(IPAddress Network, int PrefixLength)
         return true;
     }
 
+    /// <summary>The /32 used when a hostname is pinned onto the tunnel.</summary>
+    public static string IPv4HostRoute(IPAddress address)
+    {
+        if (address.AddressFamily != AddressFamily.InterNetwork)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(address), address.AddressFamily, "Host routes are IPv4 /32 prefixes.");
+        }
+
+        return $"{address}/32";
+    }
+
     public bool Contains(IPAddress address)
     {
         if (address.AddressFamily != Network.AddressFamily) { return false; }

@@ -54,6 +54,7 @@ public class ConfigStoreTests : IDisposable
         {
             VpnConnectionName = "CorpVpn",
             TunnelRoutes = ["10.50.0.0/16", "172.16.0.0/12"],
+            TunnelHosts = ["sql.example.com"],
             Probe = new ProbeConfig { Type = ProbeKind.Tcp, Host = "10.50.0.24", Port = 1433, TimeoutMs = 2500 },
             PublicIpUrl = "https://example.com/ip",
             KnownVpnEgressIps = ["203.0.113.9"],
@@ -74,6 +75,7 @@ public class ConfigStoreTests : IDisposable
         BifurcateConfig loaded = result.Config!;
         Assert.Equal(original.VpnConnectionName, loaded.VpnConnectionName);
         Assert.Equal(original.TunnelRoutes, loaded.TunnelRoutes);
+        Assert.Equal(original.TunnelHosts, loaded.TunnelHosts);
         Assert.Equal(ProbeKind.Tcp, loaded.Probe.Type);
         Assert.Equal(1433, loaded.Probe.Port);
         Assert.Equal(2500, loaded.Probe.TimeoutMs);

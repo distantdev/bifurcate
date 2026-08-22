@@ -54,6 +54,12 @@ public sealed record BifurcateConfig
     /// <summary>Prefixes that ride the tunnel in subnet-only mode, where there is no default route.</summary>
     public string[] TunnelRoutes { get; init; } = [];
 
+    /// <summary>
+    /// Hostnames (or IPv4 addresses) that should use the tunnel in subnet-only mode. Each is
+    /// resolved to a /32 and added as a VPN route, so only that destination rides the tunnel.
+    /// </summary>
+    public string[] TunnelHosts { get; init; } = [];
+
     public ProbeConfig Probe { get; init; } = new();
 
     /// <summary>
@@ -87,6 +93,12 @@ public sealed record BifurcateConfig
             {
                 errors.Add($"tunnelRoutes contains '{route}', which is not a CIDR prefix such as 10.0.0.0/16.");
             }
+        }
+
+        foreach (string host in TunnelHosts)
+        {
+            string problem = ValidateTunnelHost(host);
+            if (problem.Length > 0) { errors.Add(problem); }
         }
 
         if (string.IsNullOrWhiteSpace(Probe.Host))
@@ -138,12 +150,21 @@ public sealed record BifurcateConfig
     /// <summary>
     /// Whether the probe host falls inside the configured routes. In subnet-only mode a host that
     /// falls outside them is probed over the local connection instead of the tunnel, so the
-    /// keep-alive silently stops working. A host given as a name cannot be range-checked, which is
-    /// <see cref="ProbeHostRouting.Unknown"/> rather than a false accusation.
+    /// keep-alive silently stops working. A name on <see cref="TunnelHosts"/> counts as inside.
+    /// Any other name cannot be range-checked, which is <see cref="ProbeHostRouting.Unknown"/>
+    /// rather than a false accusation.
     /// </summary>
     public ProbeHostRouting ClassifyProbeHost()
     {
-        if (!IPAddress.TryParse(Probe.Host, out IPAddress? host)) { return ProbeHostRouting.Unknown; }
+        if (!IPAddress.TryParse(Probe.Host, out IPAddress? host))
+        {
+            // A name on the host list is sent through the tunnel as a /32, so the keep-alive is
+            // testing the VPN even though the name cannot be range-checked against CIDR prefixes.
+            return TunnelHosts.Any(candidate =>
+                candidate.Equals(Probe.Host, StringComparison.OrdinalIgnoreCase))
+                ? ProbeHostRouting.Inside
+                : ProbeHostRouting.Unknown;
+        }
 
         foreach (string route in TunnelRoutes)
         {
@@ -154,6 +175,23 @@ public sealed record BifurcateConfig
         }
 
         return ProbeHostRouting.Outside;
+    }
+
+    private static string ValidateTunnelHost(string host)
+    {
+        if (host.Contains('/'))
+        {
+            return $"tunnelHosts contains '{host}', which looks like a prefix. Put CIDR ranges in tunnelRoutes instead.";
+        }
+
+        UriHostNameType kind = Uri.CheckHostName(host);
+        return kind switch
+        {
+            UriHostNameType.Dns or UriHostNameType.IPv4 => "",
+            UriHostNameType.IPv6 =>
+                $"tunnelHosts contains '{host}', which is IPv6. Only IPv4 host routes are supported.",
+            _ => $"tunnelHosts contains '{host}', which is not a hostname or IPv4 address.",
+        };
     }
 
     public static BifurcateConfig CreateSample() => new()

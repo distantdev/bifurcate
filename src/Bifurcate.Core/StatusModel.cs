@@ -52,7 +52,10 @@ public sealed record StatusSnapshot
 
     public bool DefaultRouteOnTunnel { get; init; }
 
-    /// <summary>True when every configured prefix is present on the tunnel adapter right now.</summary>
+    /// <summary>
+    /// True when the configured tunnel subnets are on the adapter right now. Host /32s are left
+    /// out: they are applied while connected and can lag a moment without needing a reconnect.
+    /// </summary>
     public bool ConfiguredRoutesLive { get; init; }
 
     public bool FirewallRulesCurrent { get; init; }
@@ -65,6 +68,12 @@ public sealed record StatusSnapshot
 
     /// <summary>Null while in flight, empty when the lookup failed.</summary>
     public string? PublicIp { get; init; }
+
+    /// <summary>
+    /// Tunnel hosts that have no IPv4 yet, so Subnet Only would send them out the ISP. Empty when
+    /// every name resolved or last-known /32s are still in place.
+    /// </summary>
+    public IReadOnlyList<string> UnresolvedTunnelHosts { get; init; } = [];
 
     public bool StartupEnabled { get; init; }
 }

@@ -33,6 +33,8 @@
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
       </Grid.RowDefinitions>
 
       <TextBlock Grid.Row="0" Grid.Column="0" Text="VPN connection" Style="{StaticResource FieldLabel}" />
@@ -49,8 +51,22 @@
       <TextBlock Grid.Row="3" Grid.Column="1" Style="{StaticResource Hint}" Margin="0,3,0,10"
                  Text="Comma separated, for example 10.0.0.0/16. These are the ranges that use the tunnel in Subnet Only mode." />
 
-      <TextBlock Grid.Row="4" Grid.Column="0" Text="Health check" Style="{StaticResource FieldLabel}" />
-      <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal">
+      <TextBlock Grid.Row="4" Grid.Column="0" Text="Tunnel hosts" Style="{StaticResource FieldLabel}" />
+      <Grid Grid.Row="4" Grid.Column="1">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBox x:Name="HostsBox" Height="26" VerticalContentAlignment="Center" />
+        <Button x:Name="RefreshDnsButton" Grid.Column="1" Content="Refresh DNS" Width="108" Margin="8,0,0,0"
+                Click="OnRefreshDnsClick" ToolTip="Re-resolve tunnel hosts and drop remembered extra IPs that DNS no longer returns." />
+      </Grid>
+
+      <TextBlock Grid.Row="5" Grid.Column="1" Style="{StaticResource Hint}" Margin="0,3,0,10"
+                 Text="Comma separated names. Each is a /32. Extra IPs from DNS changes are kept for a day, then dropped. Use Refresh DNS to sync now." />
+
+      <TextBlock Grid.Row="6" Grid.Column="0" Text="Health check" Style="{StaticResource FieldLabel}" />
+      <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal">
         <ComboBox x:Name="ProbeTypeList" Width="104" Height="26" Margin="0,0,8,0"
                   SelectionChanged="OnProbeTypeChanged" />
         <TextBox x:Name="ProbeHostBox" Width="116" Height="26" Margin="0,0,8,0"
@@ -60,12 +76,12 @@
         <Button x:Name="TestButton" Content="Test" Width="70" Click="OnTestClick" />
       </StackPanel>
 
-      <TextBlock x:Name="TestResult" Grid.Row="5" Grid.Column="1" Style="{StaticResource Hint}"
+      <TextBlock x:Name="TestResult" Grid.Row="7" Grid.Column="1" Style="{StaticResource Hint}"
                  Margin="0,3,0,10"
                  Text="A host inside the tunnel that answers. Keep this inside the subnets above." />
 
-      <TextBlock Grid.Row="6" Grid.Column="0" Text="Recheck every" Style="{StaticResource FieldLabel}" />
-      <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal">
+      <TextBlock Grid.Row="8" Grid.Column="0" Text="Recheck every" Style="{StaticResource FieldLabel}" />
+      <StackPanel Grid.Row="8" Grid.Column="1" Orientation="Horizontal">
         <!-- The base style is the Fluent one without the clear button, which leaves no room for the
              digits in a field this narrow. -->
         <TextBox x:Name="IntervalBox" Width="60" Height="26" VerticalContentAlignment="Center"
@@ -73,38 +89,36 @@
         <TextBlock Text="seconds" VerticalAlignment="Center" Margin="8,0,0,0" />
       </StackPanel>
 
-      <TextBlock Grid.Row="7" Grid.Column="0" Text="Public IP service" Style="{StaticResource FieldLabel}"
+      <TextBlock Grid.Row="9" Grid.Column="0" Text="Public IP service" Style="{StaticResource FieldLabel}"
                  Margin="0,10,10,0" />
-      <TextBox x:Name="PublicIpBox" Grid.Row="7" Grid.Column="1" Height="26" Margin="0,10,0,0"
+      <TextBox x:Name="PublicIpBox" Grid.Row="9" Grid.Column="1" Height="26" Margin="0,10,0,0"
                VerticalContentAlignment="Center" />
 
-      <TextBlock Grid.Row="8" Grid.Column="1" Style="{StaticResource Hint}" Margin="0,3,0,10"
+      <TextBlock Grid.Row="10" Grid.Column="1" Style="{StaticResource Hint}" Margin="0,3,0,10"
                  Text="Optional. Shows the address the outside world sees. Leave blank to skip it." />
 
-      <TextBlock Grid.Row="9" Grid.Column="0" Text="Privacy" Style="{StaticResource FieldLabel}"
+      <TextBlock Grid.Row="11" Grid.Column="0" Text="Privacy" Style="{StaticResource FieldLabel}"
                  VerticalAlignment="Top" Margin="0,14,10,0" />
-      <ComboBox x:Name="HardeningList" Grid.Row="9" Grid.Column="1" Width="220" Height="26"
+      <ComboBox x:Name="HardeningList" Grid.Row="11" Grid.Column="1" Width="220" Height="26"
                 HorizontalAlignment="Left" Margin="0,13,0,0" />
 
-      <TextBlock Grid.Row="10" Grid.Column="1" Style="{StaticResource Hint}" Margin="0,3,0,0"
+      <TextBlock Grid.Row="12" Grid.Column="1" Style="{StaticResource Hint}" Margin="0,3,0,0"
                  Text="Marks the tunnel Private and blocks inbound file sharing and discovery on it." />
 
-      <TextBlock Grid.Row="11" Grid.Column="0" Text="Startup" Style="{StaticResource FieldLabel}"
+      <TextBlock Grid.Row="13" Grid.Column="0" Text="Startup" Style="{StaticResource FieldLabel}"
                  VerticalAlignment="Top" Margin="0,15,10,0" />
-      <ComboBox x:Name="StartupList" Grid.Row="11" Grid.Column="1" Width="220" Height="26"
+      <ComboBox x:Name="StartupList" Grid.Row="13" Grid.Column="1" Width="220" Height="26"
                 HorizontalAlignment="Left" Margin="0,14,0,0" SelectionChanged="OnStartupChanged" />
 
-      <TextBlock Grid.Row="12" Grid.Column="1" Style="{StaticResource Hint}" Margin="0,3,0,0"
+      <TextBlock Grid.Row="14" Grid.Column="1" Style="{StaticResource Hint}" Margin="0,3,0,0"
                  Text="The background service starts with Windows on its own." />
 
-      <TextBlock Grid.Row="13" Grid.Column="0" Text="Theme" Style="{StaticResource FieldLabel}"
+      <TextBlock Grid.Row="15" Grid.Column="0" Text="Theme" Style="{StaticResource FieldLabel}"
                  Margin="0,14,10,0" />
-      <ComboBox x:Name="ThemeList" Grid.Row="13" Grid.Column="1" Width="220" Height="26"
+      <ComboBox x:Name="ThemeList" Grid.Row="15" Grid.Column="1" Width="220" Height="26"
                 HorizontalAlignment="Left" Margin="0,14,0,0" SelectionChanged="OnThemeChanged" />
 
     </Grid>
-
-    <TextBlock x:Name="Problems" TextWrapping="Wrap" Margin="0,14,0,0" Visibility="Collapsed" />
 
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
       <Button x:Name="SaveButton" Content="Save" Width="110" Margin="0,0,10,0" IsDefault="True"

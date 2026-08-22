@@ -181,6 +181,78 @@ public class StatusEvaluatorTests
     }
 
     [Fact]
+    public void RoutingFlagsAnUnresolvedTunnelHostWhenThereAreNoSubnetsYet()
+    {
+        StatusSnapshot state = TestState.Healthy() with
+        {
+            Vpn = TestState.Vpn(splitTunneling: true, routes: []),
+            UnresolvedTunnelHosts = ["sql.example.com"],
+        };
+
+        StatusLine line = Evaluate(state, StatusKind.Routing);
+
+        Assert.Equal(StatusSeverity.Bad, line.Severity);
+        Assert.Contains("sql.example.com did not resolve", line.Text);
+    }
+
+    [Fact]
+    public void RoutingWarnsWhenATunnelHostDidNotResolveAlongsideWorkingSubnets()
+    {
+        StatusSnapshot state = TestState.Healthy() with
+        {
+            UnresolvedTunnelHosts = ["sql.example.com"],
+        };
+
+        StatusLine line = Evaluate(state, StatusKind.Routing);
+
+        Assert.Equal(StatusSeverity.Warning, line.Severity);
+        Assert.Contains("sql.example.com did not resolve", line.Text);
+    }
+
+    [Fact]
+    public void RoutingShowsTheMainSubnetAndAHostCount()
+    {
+        StatusSnapshot state = TestState.Healthy() with
+        {
+            Config = TestState.Config(tunnelHosts: ["sql.example.com", "app.example.com"]),
+            Vpn = TestState.Vpn(
+                splitTunneling: true,
+                routes: ["10.50.0.0/16", "192.0.2.10/32", "192.0.2.11/32"]),
+        };
+
+        StatusLine line = Evaluate(state, StatusKind.Routing);
+
+        Assert.Equal(StatusSeverity.Good, line.Severity);
+        Assert.Equal("Routing: 10.50.0.0/16 + 2 hosts only, others not tunneled", line.Text);
+    }
+
+    [Fact]
+    public void RoutingUsesASingularHostCount()
+    {
+        StatusSnapshot state = TestState.Healthy() with
+        {
+            Config = TestState.Config(tunnelHosts: ["sql.example.com"]),
+            Vpn = TestState.Vpn(splitTunneling: true, routes: ["10.50.0.0/16", "192.0.2.10/32"]),
+        };
+
+        Assert.Contains("10.50.0.0/16 + 1 host only", Evaluate(state, StatusKind.Routing).Text);
+    }
+
+    [Fact]
+    public void RoutingCountsMultipleUnresolvedHostsRatherThanListingThem()
+    {
+        StatusSnapshot state = TestState.Healthy() with
+        {
+            UnresolvedTunnelHosts = ["sql.example.com", "app.example.com"],
+        };
+
+        StatusLine line = Evaluate(state, StatusKind.Routing);
+
+        Assert.Equal(StatusSeverity.Warning, line.Severity);
+        Assert.Contains("2 hosts did not resolve", line.Text);
+    }
+
+    [Fact]
     public void RoutingIsGoodInFullTunnelModeWithADefaultRoute()
     {
         StatusSnapshot state = TestState.Healthy() with

@@ -13,12 +13,14 @@ internal static class TestState
     public static BifurcateConfig Config(
         string probeHost = InsideHost,
         string[]? tunnelRoutes = null,
+        string[]? tunnelHosts = null,
         bool hardeningEnabled = true,
         bool setNetworkPrivate = true,
         string[]? knownEgressIps = null) => new()
         {
             VpnConnectionName = VpnName,
             TunnelRoutes = tunnelRoutes ?? ["10.50.0.0/16"],
+            TunnelHosts = tunnelHosts ?? [],
             Probe = new ProbeConfig { Type = ProbeKind.Icmp, Host = probeHost, TimeoutMs = 3000 },
             KnownVpnEgressIps = knownEgressIps ?? [],
             Hardening = new HardeningConfig

@@ -79,9 +79,27 @@ public sealed class StatusService : IDisposable
             ProbeResult probe = probeTask.Result;
             string publicIp = ipTask.Result ?? "";
 
-            // CIM and COM calls block, so they stay off the UI thread.
+            // CIM and COM calls block, so they stay off the UI thread. Host /32s are written here
+            // too: the VPN profile is per-user, and Add-VpnConnectionRoute updates the live table
+            // when the tunnel is up.
             StatusSnapshot snapshot = await Task
-                .Run(() => _collector.Collect(config, probe, publicIp))
+                .Run(() =>
+                {
+                    IReadOnlyList<string> unresolved = [];
+                    try
+                    {
+                        unresolved = _collector.SyncTunnelHosts(config).Unresolved;
+                    }
+                    catch (Exception)
+                    {
+                        // Host routes retry on the next sweep. The dashboard still has to load.
+                    }
+
+                    return _collector.Collect(config, probe, publicIp) with
+                    {
+                        UnresolvedTunnelHosts = unresolved,
+                    };
+                })
                 .ConfigureAwait(true);
 
             Latest = new StatusUpdate

@@ -36,6 +36,7 @@ internal static class Diagnostics
         BifurcateConfig config = load.Config;
         Console.WriteLine($"  vpn name      : {config.VpnConnectionName}");
         Console.WriteLine($"  tunnel routes : {Join(config.TunnelRoutes)}");
+        Console.WriteLine($"  tunnel hosts  : {Join(config.TunnelHosts)}");
         Console.WriteLine($"  probe         : {config.Probe.Type} {config.Probe.Host}" +
                           $"{(config.Probe.Type == ProbeKind.Tcp ? ":" + config.Probe.Port : "")}" +
                           $" ({config.ClassifyProbeHost()} the tunnel routes)");

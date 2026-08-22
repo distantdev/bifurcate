@@ -28,6 +28,19 @@ public static class BifurcateInfo
 
     public static string LogDirectory { get; } = Path.Combine(DataDirectory, "logs");
 
+    /// <summary>
+    /// Per-user files the tray can write without elevation. The VPN profile is per-user too, so the
+    /// host-route ledger lives here rather than under ProgramData.
+    /// </summary>
+    public static string UserDataDirectory { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ProductName);
+
+    /// <summary>
+    /// Hostnames to /32 prefixes last applied to the VPN profile, so a later sync can drop stale
+    /// ones without touching subnets the user configured.
+    /// </summary>
+    public static string HostRouteStatePath { get; } = Path.Combine(UserDataDirectory, "host-routes.json");
+
     /// <summary>Value name used under HKCU Run for the tray app's sign-in autostart.</summary>
     public const string StartupRegistryValue = ProductName;
 

@@ -51,15 +51,20 @@ behind the gear on the dashboard, writes it for you, and
 
 ![Settings](docs/settings.png)
 
-The two that matter:
+The settings that matter:
 
 - **Tunnel subnets** are the ranges that use the tunnel in Subnet Only mode. If you do not know
   yours, connect the VPN and run `Get-NetRoute -InterfaceAlias <your vpn>` to see what it installs.
-- **Health check** has to be a host inside those subnets that answers. Bifurcate warns you if it is
-  not, because in Subnet Only mode a host outside them is reached over your ordinary connection, and
-  then the keep-alive is not touching the VPN at all. If your network drops ping, switch the check
-  from `Icmp` to `Tcp` and give it a port that is open, such as 445 on a file server or 1433 on a
-  database.
+- **Tunnel hosts** are names that should also use the tunnel, each as a /32 route. Use this for
+  public endpoints such as Azure SQL that must leave from an already-allowed office IP, without
+  sending the rest of your traffic through the VPN. The tray resolves them on each refresh through
+  the VPN's DNS. When an address moves, the previous /32 is kept for a day so cached clients do
+  not fall back to your ISP; Settings can refresh DNS to sync immediately.
+- **Health check** has to be a host inside those subnets (or one of the tunnel hosts) that answers.
+  Bifurcate warns you if it is not, because in Subnet Only mode a host outside them is reached over
+  your ordinary connection, and then the keep-alive is not touching the VPN at all. If your network
+  drops ping, switch the check from `Icmp` to `Tcp` and give it a port that is open, such as 445 on
+  a file server or 1433 on a database.
 
 Saving asks for administrator approval once. That is on purpose: the service acts on these values
 machine-wide, so if any user could edit them, any user could have inbound file sharing blocked on an

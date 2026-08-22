@@ -9,9 +9,15 @@
   // because the default route covers everything.
   "tunnelRoutes": [ "10.0.0.0/16" ],
 
+  // Hostnames or IPv4 addresses that should use the tunnel in Subnet Only mode. Each is resolved
+  // to a /32 so only that destination rides the VPN, not the rest of the internet. Use this for
+  // Azure SQL and similar public endpoints that must egress from an already-allowed office IP.
+  // When DNS moves, the previous /32 is kept for 24 hours, then dropped. Settings can refresh DNS.
+  "tunnelHosts": [],
+
   // Health check for the tunnel, and the traffic that keeps the session from idling out.
-  // The host must sit inside one of tunnelRoutes above, or Subnet Only mode will send the probe
-  // over your local connection and it will never test the VPN at all.
+  // The host must sit inside one of tunnelRoutes or tunnelHosts, or Subnet Only mode will send
+  // the probe over your local connection and it will never test the VPN at all.
   // "type": "Icmp" for ping, or "Tcp" to connect to a port instead when ping is filtered.
   "probe": {
     "type": "Icmp",

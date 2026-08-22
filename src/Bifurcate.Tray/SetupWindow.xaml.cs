@@ -62,6 +62,7 @@ public partial class SetupWindow : Window
     private void Fill(BifurcateConfig config)
     {
         RoutesBox.Text = string.Join(", ", config.TunnelRoutes);
+        HostsBox.Text = string.Join(", ", config.TunnelHosts);
         ProbeTypeList.SelectedItem = config.Probe.Type;
         ProbeHostBox.Text = config.Probe.Host;
         ProbePortBox.Text = config.Probe.Port.ToString();
@@ -92,7 +93,7 @@ public partial class SetupWindow : Window
         }
         catch (Exception ex)
         {
-            ShowProblems($"Could not read the VPN connections on this PC. {ex.Message}");
+            Notify(MessageBoxImage.Error, $"Could not read the VPN connections on this PC.\n\n{ex.Message}");
             return;
         }
 
@@ -109,7 +110,8 @@ public partial class SetupWindow : Window
 
         if (connections.Count == 0)
         {
-            ShowProblems("This PC has no VPN connections. Add one in Windows Settings first, then reopen this window.");
+            Notify(MessageBoxImage.Warning,
+                "This PC has no VPN connections. Add one in Windows Settings first, then reopen this window.");
         }
 
         // From here on, changing the dropdown is the user's doing and may overwrite the routes.
@@ -130,9 +132,20 @@ public partial class SetupWindow : Window
 
     private void CopyRoutesFromSelection()
     {
-        if (VpnList.SelectedItem is VpnConnectionInfo { Routes.Length: > 0 } connection)
+        if (VpnList.SelectedItem is not VpnConnectionInfo { Routes.Length: > 0 } connection)
         {
-            RoutesBox.Text = string.Join(", ", connection.Routes);
+            return;
+        }
+
+        IReadOnlySet<string> hostRoutes = new HostRouteStateStore().ManagedPrefixes();
+        string[] subnets =
+        [
+            .. connection.Routes.Where(prefix => !hostRoutes.Contains(prefix))
+        ];
+
+        if (subnets.Length > 0)
+        {
+            RoutesBox.Text = string.Join(", ", subnets);
         }
     }
 
@@ -170,11 +183,46 @@ public partial class SetupWindow : Window
         ProbePortBox.ToolTip = isTcp ? "Port to connect to" : "Only used for a TCP check";
     }
 
+    private async void OnRefreshDnsClick(object sender, RoutedEventArgs e)
+    {
+        BifurcateConfig candidate = Build();
+        if (string.IsNullOrWhiteSpace(candidate.VpnConnectionName))
+        {
+            Notify(MessageBoxImage.Warning, "Pick a VPN connection first.");
+            return;
+        }
+
+        RefreshDnsButton.IsEnabled = false;
+
+        try
+        {
+            HostRouteSyncResult result = await Task
+                .Run(() =>
+                {
+                    using StatusCollector collector = new();
+                    return collector.ForgetRememberedHostRoutes(candidate);
+                })
+                .ConfigureAwait(true);
+
+            string message = result.Removed.Count == 0
+                ? "DNS refreshed. No extra routes removed."
+                : $"DNS refreshed.\n\nRemoved {string.Join(", ", result.Removed)}.";
+            Notify(MessageBoxImage.Information, message);
+        }
+        catch (Exception ex)
+        {
+            Notify(MessageBoxImage.Error, $"Could not refresh DNS.\n\n{ex.Message}");
+        }
+        finally
+        {
+            RefreshDnsButton.IsEnabled = true;
+        }
+    }
+
     private async void OnTestClick(object sender, RoutedEventArgs e)
     {
         BifurcateConfig candidate = Build();
         TestButton.IsEnabled = false;
-        TestResult.Text = $"Checking {candidate.Probe.Host}...";
 
         try
         {
@@ -182,15 +230,17 @@ public partial class SetupWindow : Window
                 .RunAsync(candidate.Probe, CancellationToken.None)
                 .ConfigureAwait(true);
 
-            TestResult.Text = result.Reachable
+            string message = result.Reachable
                 ? $"{candidate.Probe.Host} answered in {result.LatencyMs} ms."
-                : $"No answer from {candidate.Probe.Host}. Connect the VPN and try again, or use a TCP check if ping is blocked.";
+                : $"No answer from {candidate.Probe.Host}.\n\nConnect the VPN and try again, or use a TCP check if ping is blocked.";
 
             if (result.Reachable && candidate.ClassifyProbeHost() == ProbeHostRouting.Outside)
             {
-                TestResult.Text += " It is outside the subnets above, so in Subnet Only mode it would " +
-                                   "not travel through the tunnel.";
+                message += "\n\nIt is outside the subnets above, so in Subnet Only mode it would " +
+                           "not travel through the tunnel.";
             }
+
+            Notify(result.Reachable ? MessageBoxImage.Information : MessageBoxImage.Warning, message);
         }
         finally
         {
@@ -205,7 +255,7 @@ public partial class SetupWindow : Window
 
         if (errors.Count > 0)
         {
-            ShowProblems(string.Join(Environment.NewLine, errors));
+            Notify(MessageBoxImage.Warning, string.Join("\n\n", errors));
             return;
         }
 
@@ -219,12 +269,13 @@ public partial class SetupWindow : Window
                 return;
 
             case SaveOutcome.Declined:
-                ShowProblems("Saving needs administrator approval, because the background service " +
-                             "acts on these settings for the whole machine.");
+                Notify(MessageBoxImage.Warning,
+                    "Saving needs administrator approval, because the background service " +
+                    "acts on these settings for the whole machine.");
                 return;
 
             case SaveOutcome.Failed:
-                ShowProblems($"Could not save. {saved.Error}");
+                Notify(MessageBoxImage.Error, $"Could not save.\n\n{saved.Error}");
                 return;
 
             default:
@@ -248,6 +299,7 @@ public partial class SetupWindow : Window
     {
         VpnConnectionName = (VpnList.SelectedItem as VpnConnectionInfo)?.Name ?? "",
         TunnelRoutes = Split(RoutesBox.Text),
+        TunnelHosts = Split(HostsBox.Text),
         Probe = new ProbeConfig
         {
             Type = ProbeTypeList.SelectedItem is ProbeKind kind ? kind : ProbeKind.Icmp,
@@ -263,10 +315,6 @@ public partial class SetupWindow : Window
     private static string[] Split(string text) =>
         [.. text.Split([',', ';', ' '], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)];
 
-    private void ShowProblems(string message)
-    {
-        Problems.Text = message;
-        Problems.Foreground = SeverityPalette.Brush(StatusSeverity.Bad);
-        Problems.Visibility = Visibility.Visible;
-    }
+    private void Notify(MessageBoxImage image, string message) =>
+        MessageBox.Show(this, message, BifurcateInfo.ProductName, MessageBoxButton.OK, image);
 }
