@@ -63,6 +63,8 @@ public partial class SetupWindow : Window
     {
         RoutesBox.Text = string.Join(", ", config.TunnelRoutes);
         HostsBox.Text = string.Join(", ", config.TunnelHosts);
+        BypassDomainsBox.Text = string.Join(", ", config.DnsBypass.Domains);
+        BypassDnsBox.Text = string.Join(", ", config.DnsBypass.DnsServers);
         ProbeTypeList.SelectedItem = config.Probe.Type;
         ProbeHostBox.Text = config.Probe.Host;
         ProbePortBox.Text = config.Probe.Port.ToString();
@@ -310,6 +312,11 @@ public partial class SetupWindow : Window
         SweepIntervalSeconds = int.TryParse(IntervalBox.Text, out int interval) ? interval : 0,
         PublicIpUrl = PublicIpBox.Text.Trim(),
         Hardening = _startingPoint.Hardening with { Enabled = IsOn(HardeningList) },
+        DnsBypass = new DnsBypassConfig
+        {
+            Domains = Split(BypassDomainsBox.Text),
+            DnsServers = Split(BypassDnsBox.Text),
+        },
     };
 
     private static string[] Split(string text) =>

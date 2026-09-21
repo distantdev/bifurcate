@@ -7,6 +7,7 @@ public enum StatusKind
     Routing,
     ExternalIp,
     Network,
+    DnsBypass,
     Startup,
 }
 
@@ -75,5 +76,16 @@ public sealed record StatusSnapshot
     /// </summary>
     public IReadOnlyList<string> UnresolvedTunnelHosts { get; init; } = [];
 
+    public DnsBypassStatus DnsBypass { get; init; } = new();
+
     public bool StartupEnabled { get; init; }
+}
+
+public sealed record DnsBypassStatus
+{
+    public bool Enabled { get; init; }
+    public int DomainCount { get; init; }
+    public IReadOnlyList<string> DnsServers { get; init; } = [];
+    public bool RulesApplied { get; init; }
+    public string? Warning { get; init; }
 }

@@ -209,6 +209,62 @@ public class BifurcateConfigTests
         Assert.Equal(ProbeHostRouting.Inside, config.ClassifyProbeHost());
     }
 
+    [Fact]
+    public void ValidDnsBypassDomainsAndServersPassValidation()
+    {
+        BifurcateConfig config = Valid() with
+        {
+            DnsBypass = new DnsBypassConfig
+            {
+                Domains = ["home.arpa", ".local", "my-nas.lan"],
+                DnsServers = ["192.168.1.1", "10.0.0.1"],
+            },
+        };
+
+        Assert.Empty(config.Validate());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("192.168.1.1")]
+    [InlineData("10.0.0.0/24")]
+    [InlineData("bad domain with spaces")]
+    public void BadDnsBypassDomainIsReported(string domain)
+    {
+        BifurcateConfig config = Valid() with
+        {
+            DnsBypass = new DnsBypassConfig { Domains = [domain] },
+        };
+
+        Assert.Contains(config.Validate(), error => error.Contains("dnsBypass.domains"));
+    }
+
+    [Theory]
+    [InlineData("not-an-ip")]
+    [InlineData("999.999.999.999")]
+    [InlineData("2001:db8::1")]
+    public void BadDnsBypassServerIsReported(string ip)
+    {
+        BifurcateConfig config = Valid() with
+        {
+            DnsBypass = new DnsBypassConfig { DnsServers = [ip] },
+        };
+
+        Assert.Contains(config.Validate(), error => error.Contains("dnsBypass.dnsServers"));
+    }
+
+    [Theory]
+    [InlineData("local", ".local")]
+    [InlineData(".local", ".local")]
+    [InlineData("home.arpa", ".home.arpa")]
+    [InlineData(".HOME.ARPA", ".home.arpa")]
+    [InlineData("  .MyNas.Lan  ", ".mynas.lan")]
+    public void NormalizeBypassNamespacePrependsDotAndLowercases(string input, string expected)
+    {
+        Assert.Equal(expected, BifurcateConfig.NormalizeBypassNamespace(input));
+    }
+
     private static BifurcateConfig Valid() => new()
     {
         VpnConnectionName = "CorpVpn",

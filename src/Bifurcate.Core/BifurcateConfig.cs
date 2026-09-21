@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Sockets;
 
 namespace Bifurcate.Core;
 
@@ -46,6 +47,21 @@ public sealed record HardeningConfig
     public int[] BlockInboundUdpPorts { get; init; } = [137, 138, 1900, 5353, 5355];
 }
 
+public sealed record DnsBypassConfig
+{
+    /// <summary>
+    /// Domain suffixes (such as 'home.arpa' or '.local') that should bypass the VPN DNS and be
+    /// resolved by the regular physical LAN adapter DNS instead.
+    /// </summary>
+    public string[] Domains { get; init; } = [];
+
+    /// <summary>
+    /// Optional explicit DNS server IPv4 addresses for bypassed domains. When empty, Bifurcate
+    /// automatically detects the DNS servers of the primary LAN/Wi-Fi adapter.
+    /// </summary>
+    public string[] DnsServers { get; init; } = [];
+}
+
 public sealed record BifurcateConfig
 {
     /// <summary>Name of the Windows VPN connection to manage, exactly as it appears in Settings.</summary>
@@ -77,6 +93,8 @@ public sealed record BifurcateConfig
     public int SweepIntervalSeconds { get; init; } = 60;
 
     public HardeningConfig Hardening { get; init; } = new();
+
+    public DnsBypassConfig DnsBypass { get; init; } = new();
 
     public IReadOnlyList<string> Validate()
     {
@@ -144,6 +162,20 @@ public sealed record BifurcateConfig
             }
         }
 
+        foreach (string domain in DnsBypass.Domains)
+        {
+            string problem = ValidateBypassDomain(domain);
+            if (problem.Length > 0) { errors.Add(problem); }
+        }
+
+        foreach (string ip in DnsBypass.DnsServers)
+        {
+            if (!IPAddress.TryParse(ip, out IPAddress? parsed) || parsed.AddressFamily != AddressFamily.InterNetwork)
+            {
+                errors.Add($"dnsBypass.dnsServers contains '{ip}', which is not a valid IPv4 address.");
+            }
+        }
+
         return errors;
     }
 
@@ -192,6 +224,38 @@ public sealed record BifurcateConfig
                 $"tunnelHosts contains '{host}', which is IPv6. Only IPv4 host routes are supported.",
             _ => $"tunnelHosts contains '{host}', which is not a hostname or IPv4 address.",
         };
+    }
+
+    public static string ValidateBypassDomain(string domain)
+    {
+        if (string.IsNullOrWhiteSpace(domain))
+        {
+            return "dnsBypass.domains contains an empty domain entry.";
+        }
+
+        if (domain.Contains('/'))
+        {
+            return $"dnsBypass.domains contains '{domain}', which looks like a prefix. Put domain names or suffixes instead.";
+        }
+
+        string trimmed = domain.Trim().TrimStart('.');
+        if (IPAddress.TryParse(trimmed, out _))
+        {
+            return $"dnsBypass.domains contains '{domain}', which is an IP address. Use domain names or suffixes such as 'local' or 'home.arpa'.";
+        }
+
+        UriHostNameType kind = Uri.CheckHostName(trimmed);
+        return kind switch
+        {
+            UriHostNameType.Dns or UriHostNameType.Basic => "",
+            _ => $"dnsBypass.domains contains '{domain}', which is not a valid domain name.",
+        };
+    }
+
+    public static string NormalizeBypassNamespace(string domain)
+    {
+        string trimmed = domain.Trim().TrimStart('.');
+        return "." + trimmed.ToLowerInvariant();
     }
 
     public static BifurcateConfig CreateSample() => new()

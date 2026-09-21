@@ -65,6 +65,9 @@ The settings that matter:
   your ordinary connection, and then the keep-alive is not touching the VPN at all. If your network
   drops ping, switch the check from `Icmp` to `Tcp` and give it a port that is open, such as 445 on
   a file server or 1433 on a database.
+- **Bypass domains** are domain suffixes (such as `home.arpa` or `local`) that should bypass the
+  VPN's DNS and be resolved by your physical connection's DNS instead, keeping local network names
+  resolvable even when connected to the VPN.
 
 Saving asks for administrator approval once. That is on purpose: the service acts on these values
 machine-wide, so if any user could edit them, any user could have inbound file sharing blocked on an
@@ -72,7 +75,7 @@ adapter of their choosing.
 
 ## The dashboard
 
-Six lines, rechecked on the interval in your settings and whenever you open the window.
+Seven lines, rechecked on the interval in your settings and whenever you open the window.
 
 | Line | What it tells you |
 |---|---|
@@ -81,6 +84,7 @@ Six lines, rechecked on the interval in your settings and whenever you open the 
 | Routing | Which routing mode is saved, and whether the live session matches it |
 | External IP | The address the outside world sees, and whether that path is the one you asked for |
 | Network | Whether the tunnel is Private and the inbound blocks are in place |
+| DNS Bypass | Whether specified domains are configured to bypass the VPN DNS and resolve via LAN DNS |
 | Startup | Whether the tray app launches when you sign in |
 
 Green means as intended. Orange usually means **reconnect the VPN**, because Windows only reads a

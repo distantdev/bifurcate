@@ -13,6 +13,7 @@ public static class StatusEvaluator
         Routing(state),
         ExternalIp(state),
         Network(state),
+        DnsBypass(state),
         Startup(state),
     ];
 
@@ -226,6 +227,31 @@ public static class StatusEvaluator
         return state.FirewallRulesCurrent
             ? new(StatusKind.Network, "Network: Private, hidden from others on the VPN", StatusSeverity.Good)
             : new(StatusKind.Network, "Network: Private, but file sharing is not blocked", StatusSeverity.Warning);
+    }
+
+    private static StatusLine DnsBypass(StatusSnapshot state)
+    {
+        if (!state.DnsBypass.Enabled || state.DnsBypass.DomainCount == 0)
+        {
+            return new(StatusKind.DnsBypass, "DNS Bypass: Disabled", StatusSeverity.Neutral);
+        }
+
+        if (state.DnsBypass.DnsServers.Count == 0)
+        {
+            return new(StatusKind.DnsBypass,
+                "DNS Bypass: Warning - no LAN DNS server detected", StatusSeverity.Warning);
+        }
+
+        if (!state.DnsBypass.RulesApplied)
+        {
+            return new(StatusKind.DnsBypass,
+                "DNS Bypass: Rules not applied", StatusSeverity.Bad);
+        }
+
+        string s = state.DnsBypass.DomainCount == 1 ? "domain" : "domains";
+        string servers = string.Join(", ", state.DnsBypass.DnsServers);
+        return new(StatusKind.DnsBypass,
+            $"DNS Bypass: Active ({state.DnsBypass.DomainCount} {s} -> {servers})", StatusSeverity.Good);
     }
 
     private static StatusLine Startup(StatusSnapshot state) => state.StartupEnabled

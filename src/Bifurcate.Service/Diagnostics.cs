@@ -37,6 +37,7 @@ internal static class Diagnostics
         Console.WriteLine($"  vpn name      : {config.VpnConnectionName}");
         Console.WriteLine($"  tunnel routes : {Join(config.TunnelRoutes)}");
         Console.WriteLine($"  tunnel hosts  : {Join(config.TunnelHosts)}");
+        Console.WriteLine($"  dns bypass    : {Join(config.DnsBypass.Domains)}");
         Console.WriteLine($"  probe         : {config.Probe.Type} {config.Probe.Host}" +
                           $"{(config.Probe.Type == ProbeKind.Tcp ? ":" + config.Probe.Port : "")}" +
                           $" ({config.ClassifyProbeHost()} the tunnel routes)");
@@ -57,6 +58,7 @@ internal static class Diagnostics
         Console.WriteLine($"  default route    : {snapshot.DefaultRouteOnTunnel}");
         Console.WriteLine($"  routes live      : {snapshot.ConfiguredRoutesLive}");
         Console.WriteLine($"  firewall rules   : {(snapshot.FirewallRulesCurrent ? "current" : "missing or wrong")}");
+        Console.WriteLine($"  dns bypass       : enabled={snapshot.DnsBypass.Enabled} rulesApplied={snapshot.DnsBypass.RulesApplied} servers=[{string.Join(", ", snapshot.DnsBypass.DnsServers)}]");
         Console.WriteLine($"  public egress    : {snapshot.PublicEgressAdapter ?? "unknown"}");
         Console.WriteLine($"  public address   : {(publicIp.Length == 0 ? "unknown" : publicIp)}");
         Console.WriteLine($"  probe            : reachable={probe.Reachable} {probe.LatencyMs}ms");

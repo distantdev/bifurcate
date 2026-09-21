@@ -15,6 +15,15 @@
   // When DNS moves, the previous /32 is kept for 24 hours, then dropped. Settings can refresh DNS.
   "tunnelHosts": [],
 
+  // Domain suffixes that should bypass the VPN's DNS and be resolved by your physical connection's
+  // DNS instead. Useful when local domains (e.g. *.home.arpa or *.local) cannot be resolved by the VPN.
+  // Suffix matching is used: "home.arpa" matches home.arpa and all subdomains.
+  // Leave dnsServers empty to auto-detect DNS from your active LAN/Wi-Fi connection.
+  "dnsBypass": {
+    "domains": [],
+    "dnsServers": []
+  },
+
   // Health check for the tunnel, and the traffic that keeps the session from idling out.
   // The host must sit inside one of tunnelRoutes or tunnelHosts, or Subnet Only mode will send
   // the probe over your local connection and it will never test the VPN at all.

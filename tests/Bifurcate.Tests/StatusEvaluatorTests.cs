@@ -5,7 +5,7 @@ namespace Bifurcate.Tests;
 public class StatusEvaluatorTests
 {
     [Fact]
-    public void ProducesTheSixLinesInAFixedOrder()
+    public void ProducesTheSevenLinesInAFixedOrder()
     {
         IReadOnlyList<StatusLine> lines = StatusEvaluator.Evaluate(TestState.Healthy());
 
@@ -16,6 +16,7 @@ public class StatusEvaluatorTests
             StatusKind.Routing,
             StatusKind.ExternalIp,
             StatusKind.Network,
+            StatusKind.DnsBypass,
             StatusKind.Startup,
         ];
 
@@ -474,6 +475,110 @@ public class StatusEvaluatorTests
         StatusSnapshot state = TestState.Healthy() with { Tunnel = null };
 
         Assert.Equal(StatusSeverity.Neutral, Evaluate(state, StatusKind.Network).Severity);
+    }
+
+    // --- DNS Bypass ---
+
+    [Fact]
+    public void DnsBypassDisabledWhenNotEnabled()
+    {
+        StatusSnapshot state = TestState.Healthy() with
+        {
+            DnsBypass = new DnsBypassStatus { Enabled = false },
+        };
+
+        StatusLine line = Evaluate(state, StatusKind.DnsBypass);
+        Assert.Equal(StatusSeverity.Neutral, line.Severity);
+        Assert.Equal("DNS Bypass: Disabled", line.Text);
+    }
+
+    [Fact]
+    public void DnsBypassDisabledWhenNoDomainsConfigured()
+    {
+        StatusSnapshot state = TestState.Healthy() with
+        {
+            DnsBypass = new DnsBypassStatus { Enabled = true, DomainCount = 0 },
+        };
+
+        StatusLine line = Evaluate(state, StatusKind.DnsBypass);
+        Assert.Equal(StatusSeverity.Neutral, line.Severity);
+        Assert.Equal("DNS Bypass: Disabled", line.Text);
+    }
+
+    [Fact]
+    public void DnsBypassWarnsWhenNoLanDnsServerDetected()
+    {
+        StatusSnapshot state = TestState.Healthy() with
+        {
+            DnsBypass = new DnsBypassStatus
+            {
+                Enabled = true,
+                DomainCount = 2,
+                DnsServers = [],
+                RulesApplied = false,
+            },
+        };
+
+        StatusLine line = Evaluate(state, StatusKind.DnsBypass);
+        Assert.Equal(StatusSeverity.Warning, line.Severity);
+        Assert.Contains("no LAN DNS server detected", line.Text);
+    }
+
+    [Fact]
+    public void DnsBypassBadWhenRulesNotApplied()
+    {
+        StatusSnapshot state = TestState.Healthy() with
+        {
+            DnsBypass = new DnsBypassStatus
+            {
+                Enabled = true,
+                DomainCount = 2,
+                DnsServers = ["192.168.1.1"],
+                RulesApplied = false,
+            },
+        };
+
+        StatusLine line = Evaluate(state, StatusKind.DnsBypass);
+        Assert.Equal(StatusSeverity.Bad, line.Severity);
+        Assert.Equal("DNS Bypass: Rules not applied", line.Text);
+    }
+
+    [Fact]
+    public void DnsBypassGoodWhenActiveSingleDomain()
+    {
+        StatusSnapshot state = TestState.Healthy() with
+        {
+            DnsBypass = new DnsBypassStatus
+            {
+                Enabled = true,
+                DomainCount = 1,
+                DnsServers = ["192.168.1.1"],
+                RulesApplied = true,
+            },
+        };
+
+        StatusLine line = Evaluate(state, StatusKind.DnsBypass);
+        Assert.Equal(StatusSeverity.Good, line.Severity);
+        Assert.Equal("DNS Bypass: Active (1 domain -> 192.168.1.1)", line.Text);
+    }
+
+    [Fact]
+    public void DnsBypassGoodWhenActiveMultipleDomainsAndServers()
+    {
+        StatusSnapshot state = TestState.Healthy() with
+        {
+            DnsBypass = new DnsBypassStatus
+            {
+                Enabled = true,
+                DomainCount = 3,
+                DnsServers = ["192.168.1.1", "192.168.1.2"],
+                RulesApplied = true,
+            },
+        };
+
+        StatusLine line = Evaluate(state, StatusKind.DnsBypass);
+        Assert.Equal(StatusSeverity.Good, line.Severity);
+        Assert.Equal("DNS Bypass: Active (3 domains -> 192.168.1.1, 192.168.1.2)", line.Text);
     }
 
     // --- Startup ---

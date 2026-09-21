@@ -29,6 +29,7 @@ public sealed class KeepAliveWorker(ILogger<KeepAliveWorker> log) : BackgroundSe
             BifurcateInfo.ProductName, BifurcateInfo.ConfigPath);
 
         Hardener hardener = new(_profiles, _firewall);
+        using DnsBypassService dnsBypass = new();
         ReloadConfig(initial: true);
 
         using IDisposable watcher = ConfigStore.Watch(() =>
@@ -52,7 +53,7 @@ public sealed class KeepAliveWorker(ILogger<KeepAliveWorker> log) : BackgroundSe
                     await Task.Delay(SettleDelay, stoppingToken).ConfigureAwait(false);
                 }
 
-                await SweepAsync(hardener, stoppingToken).ConfigureAwait(false);
+                await SweepAsync(hardener, dnsBypass, stoppingToken).ConfigureAwait(false);
                 await WaitForNextSweepAsync(stoppingToken).ConfigureAwait(false);
             }
         }
@@ -64,11 +65,18 @@ public sealed class KeepAliveWorker(ILogger<KeepAliveWorker> log) : BackgroundSe
         {
             NetworkChange.NetworkAddressChanged -= onAddressChanged;
             NetworkChange.NetworkAvailabilityChanged -= onAvailabilityChanged;
+
+            IReadOnlyList<string> removedDns = dnsBypass.RemoveOwnedRules();
+            if (removedDns.Count > 0)
+            {
+                log.LogInformation("Removed {Count} DNS bypass rule(s) on service stop.", removedDns.Count);
+            }
+
             log.LogInformation("{Product} service stopping.", BifurcateInfo.ProductName);
         }
     }
 
-    private async Task SweepAsync(Hardener hardener, CancellationToken cancellationToken)
+    private async Task SweepAsync(Hardener hardener, DnsBypassService dnsBypass, CancellationToken cancellationToken)
     {
         BifurcateConfig? config = _config;
         if (config is null) { return; }
@@ -84,10 +92,23 @@ public sealed class KeepAliveWorker(ILogger<KeepAliveWorker> log) : BackgroundSe
             {
                 log.LogInformation("Hardening {Action}: {Detail}", outcome.Action, outcome.Detail);
             }
+
+            DnsBypassOutcome dnsOutcome = dnsBypass.Sweep(config, tunnel);
+            if (dnsOutcome.Action != DnsBypassAction.None)
+            {
+                if (dnsOutcome.Action == DnsBypassAction.Warning)
+                {
+                    log.LogWarning("DNS Bypass: {Detail}", dnsOutcome.Detail);
+                }
+                else
+                {
+                    log.LogInformation("DNS Bypass {Action}: {Detail}", dnsOutcome.Action, dnsOutcome.Detail);
+                }
+            }
         }
         catch (UnauthorizedAccessException ex)
         {
-            log.LogError(ex, "Hardening needs administrator rights. Run this as a service, not as a plain user.");
+            log.LogError(ex, "Hardening and DNS bypass need administrator rights. Run this as a service, not as a plain user.");
             return;
         }
         catch (Exception ex)

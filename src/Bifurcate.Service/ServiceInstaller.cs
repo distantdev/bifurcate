@@ -99,6 +99,12 @@ internal static class ServiceInstaller
             ? "No firewall rules to clean up."
             : $"Removed firewall rules: {string.Join(", ", rules)}");
 
+        using DnsBypassService dnsBypass = new();
+        IReadOnlyList<string> dnsRules = dnsBypass.RemoveOwnedRules();
+        Console.WriteLine(dnsRules.Count == 0
+            ? "No DNS bypass rules to clean up."
+            : $"Removed DNS bypass rules: {string.Join(", ", dnsRules)}");
+
         return 0;
     }
 

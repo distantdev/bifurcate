@@ -16,6 +16,7 @@ public sealed class StatusCollector : IDisposable
     private readonly RoutingInspector _routes = new();
     private readonly FirewallService _firewall = new();
     private readonly HostRouteStateStore _hostRoutes = new();
+    private readonly DnsBypassService _dnsBypass = new();
 
     public StatusSnapshot Collect(BifurcateConfig config, ProbeResult? probe, string? publicIp)
     {
@@ -50,6 +51,7 @@ public sealed class StatusCollector : IDisposable
             PublicEgressAdapter = RoutingInspector.PublicEgressInterfaceAlias(),
             Probe = probe,
             PublicIp = publicIp,
+            DnsBypass = _dnsBypass.ReadStatus(config, tunnel),
             StartupEnabled = StartupManager.IsEnabled(),
         };
     }
@@ -231,5 +233,6 @@ public sealed class StatusCollector : IDisposable
         _vpn.Dispose();
         _profiles.Dispose();
         _routes.Dispose();
+        _dnsBypass.Dispose();
     }
 }

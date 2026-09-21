@@ -61,6 +61,13 @@ internal static class TestState
         PublicEgressAdapter = LocalAdapter,
         Probe = new ProbeResult { Reachable = true, LatencyMs = 22 },
         PublicIp = "203.0.113.9",
+        DnsBypass = new DnsBypassStatus
+        {
+            Enabled = true,
+            DomainCount = 1,
+            DnsServers = ["192.168.1.1"],
+            RulesApplied = true,
+        },
         StartupEnabled = true,
     };
 

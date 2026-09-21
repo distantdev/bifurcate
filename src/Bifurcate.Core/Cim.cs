@@ -10,6 +10,7 @@ internal static class Cim
 {
     public const string VpnNamespace = @"root\Microsoft\Windows\RemoteAccess\Client";
     public const string StandardNamespace = @"root\StandardCimv2";
+    public const string DnsNamespace = @"root\Microsoft\Windows\DNS";
 
     public static CimSession CreateSession() => CimSession.Create(null);
 
@@ -36,6 +37,9 @@ internal static class Cim
 
     public static string StringOf(CimInstance instance, string property) =>
         instance.CimInstanceProperties[property]?.Value?.ToString() ?? "";
+
+    public static string[] StringArrayOf(CimInstance instance, string property) =>
+        instance.CimInstanceProperties[property]?.Value is string[] values ? values : [];
 
     public static bool BoolOf(CimInstance instance, string property) =>
         instance.CimInstanceProperties[property]?.Value is bool value && value;

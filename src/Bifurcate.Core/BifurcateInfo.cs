@@ -21,6 +21,9 @@ public static class BifurcateInfo
     /// <summary>Every rule this tool owns starts with this, which is what cleanup matches on.</summary>
     public const string RulePrefix = ProductName + "-Block-Inbound-";
 
+    public const string DnsBypassComment = ProductName;
+    public const string DnsBypassRulePrefix = ProductName + ":";
+
     public static string DataDirectory { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), ProductName);
 
